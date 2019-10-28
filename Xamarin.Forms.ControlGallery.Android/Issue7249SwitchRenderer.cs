@@ -9,7 +9,7 @@ namespace Xamarin.Forms.ControlGallery.Android
 {
 	public class Issue7249SwitchRenderer : SwitchRenderer
 	{
-		private Issue7249Switch _view;
+		Issue7249Switch _view;
 
 		public Issue7249SwitchRenderer(Context context) : base(context)
 		{
