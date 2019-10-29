@@ -1,23 +1,24 @@
 using System;
-using System.Collections;
+using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Linq;
 
 namespace Xamarin.Forms.Platform.Android
 {
 	internal class ObservableItemsSource : IItemsViewSource
 	{
-		readonly IList _itemsSource;
+		readonly IEnumerable<object> _itemsSource;
 		readonly ICollectionChangedNotifier _notifier;
 		bool _disposed;
 
-		public ObservableItemsSource(IList itemSource, ICollectionChangedNotifier notifier)
+		public ObservableItemsSource(IEnumerable<object> itemSource, ICollectionChangedNotifier notifier)
 		{
 			_itemsSource = itemSource;
 			_notifier = notifier;
 			((INotifyCollectionChanged)itemSource).CollectionChanged += CollectionChanged;
 		}
 
-		public int Count => _itemsSource.Count + (HasHeader ? 1 : 0) + (HasFooter ? 1 : 0);
+		public int Count => _itemsSource.Count() + (HasHeader ? 1 : 0) + (HasFooter ? 1 : 0);
 
 		public bool HasHeader { get; set; }
 		public bool HasFooter { get; set; }
@@ -39,9 +40,9 @@ namespace Xamarin.Forms.Platform.Android
 
 		public int GetPosition(object item)
 		{
-			for (int n = 0; n < _itemsSource.Count; n++)
+			for (int n = 0; n < _itemsSource.Count(); n++)
 			{
-				if (_itemsSource[n] == item)
+				if (_itemsSource.ElementAt(n) == item)
 				{
 					return AdjustPositionForHeader(n);
 				}
@@ -52,7 +53,7 @@ namespace Xamarin.Forms.Platform.Android
 
 		public object GetItem(int position)
 		{
-			return _itemsSource[AdjustIndexForHeader(position)];
+			return _itemsSource.ElementAt(AdjustIndexForHeader(position));
 		}
 
 		protected virtual void Dispose(bool disposing)
@@ -122,7 +123,7 @@ namespace Xamarin.Forms.Platform.Android
 
 		void Add(NotifyCollectionChangedEventArgs args)
 		{
-			var startIndex = args.NewStartingIndex > -1 ? args.NewStartingIndex : _itemsSource.IndexOf(args.NewItems[0]);
+			var startIndex = args.NewStartingIndex > -1 ? args.NewStartingIndex : IndexOf(_itemsSource, args.NewItems[0]);
 			startIndex = AdjustPositionForHeader(startIndex);
 			var count = args.NewItems.Count;
 
@@ -163,7 +164,7 @@ namespace Xamarin.Forms.Platform.Android
 
 		void Replace(NotifyCollectionChangedEventArgs args)
 		{
-			var startIndex = args.NewStartingIndex > -1 ? args.NewStartingIndex : _itemsSource.IndexOf(args.NewItems[0]);
+			var startIndex = args.NewStartingIndex > -1 ? args.NewStartingIndex : IndexOf(_itemsSource, args.NewItems[0]);
 			startIndex = AdjustPositionForHeader(startIndex);
 			var newCount = args.NewItems.Count;
 
@@ -186,6 +187,28 @@ namespace Xamarin.Forms.Platform.Android
 			// The original and replacement sets are of unequal size; this means that everything currently in view will 
 			// have to be updated. So we just have to use NotifyDataSetChanged and let the RecyclerView update everything
 			_notifier.NotifyDataSetChanged();
+		}
+
+		internal int IndexOf<T>(IEnumerable<T> items, T item) { return FindIndex(items, i => EqualityComparer<T>.Default.Equals(item, i)); }
+
+		internal int FindIndex<T>(IEnumerable<T> items, Func<T, bool> predicate)
+		{
+			if (items == null)
+				throw new ArgumentNullException(nameof(items));
+
+			if (predicate == null)
+				throw new ArgumentNullException(nameof(predicate));
+
+			int retVal = 0;
+
+			foreach (var item in items)
+			{
+				if (predicate(item))
+					return retVal;
+				retVal++;
+			}
+
+			return -1;
 		}
 	}
 }

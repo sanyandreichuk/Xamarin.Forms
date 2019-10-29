@@ -1,6 +1,7 @@
 ﻿using System;
-using System.Collections;
+using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Linq;
 using Foundation;
 using UIKit;
 
@@ -12,10 +13,10 @@ namespace Xamarin.Forms.Platform.iOS
 		readonly UICollectionView _collectionView;
 		readonly bool _grouped;
 		readonly int _section;
-		readonly IList _itemsSource;
+		readonly IEnumerable<object> _itemsSource;
 		bool _disposed;
 
-		public ObservableItemsSource(IList itemSource, UICollectionViewController collectionViewController, int group = -1)
+		public ObservableItemsSource(IEnumerable<object> itemSource, UICollectionViewController collectionViewController, int group = -1)
 		{
 			_collectionViewController = collectionViewController;
 			_collectionView = _collectionViewController.CollectionView;
@@ -28,9 +29,9 @@ namespace Xamarin.Forms.Platform.iOS
 			((INotifyCollectionChanged)itemSource).CollectionChanged += CollectionChanged;
 		}
 
-		public int Count => _itemsSource.Count;
+		public int Count => _itemsSource.Count();
 
-		public object this[int index] => _itemsSource[index];
+		public object this[int index] => _itemsSource.ElementAt(index);
 
 		public void Dispose()
 		{
@@ -52,7 +53,7 @@ namespace Xamarin.Forms.Platform.iOS
 
 		public int ItemCountInGroup(nint group)
 		{
-			return _itemsSource.Count;
+			return _itemsSource.Count();
 		}
 
 		public object Group(NSIndexPath indexPath)
@@ -62,7 +63,7 @@ namespace Xamarin.Forms.Platform.iOS
 
 		public NSIndexPath GetIndexForItem(object item)
 		{
-			for (int n = 0; n < _itemsSource.Count; n++)
+			for (int n = 0; n < _itemsSource.Count(); n++)
 			{
 				if (this[n] == item)
 				{
@@ -75,7 +76,7 @@ namespace Xamarin.Forms.Platform.iOS
 
 		public int GroupCount => 1;
 
-		public int ItemCount => _itemsSource.Count;
+		public int ItemCount => _itemsSource.Count();
 
 		public object this[NSIndexPath indexPath]
 		{
@@ -141,7 +142,7 @@ namespace Xamarin.Forms.Platform.iOS
 
 		void Add(NotifyCollectionChangedEventArgs args)
 		{
-			var startIndex = args.NewStartingIndex > -1 ? args.NewStartingIndex : _itemsSource.IndexOf(args.NewItems[0]);
+			var startIndex = args.NewStartingIndex > -1 ? args.NewStartingIndex : IndexOf(_itemsSource, args.NewItems[0]);
 			var count = args.NewItems.Count;
 
 			if (NotLoadedYet())
@@ -198,7 +199,7 @@ namespace Xamarin.Forms.Platform.iOS
 
 			if (newCount == args.OldItems.Count)
 			{
-				var startIndex = args.NewStartingIndex > -1 ? args.NewStartingIndex : _itemsSource.IndexOf(args.NewItems[0]);
+				var startIndex = args.NewStartingIndex > -1 ? args.NewStartingIndex : IndexOf(_itemsSource, args.NewItems[0]);
 
 				// We are replacing one set of items with a set of equal size; we can do a simple item range update
 				_collectionView.ReloadItems(CreateIndexesFrom(startIndex, newCount));
@@ -227,6 +228,28 @@ namespace Xamarin.Forms.Platform.iOS
 			var start = Math.Min(args.OldStartingIndex, args.NewStartingIndex);
 			var end = Math.Max(args.OldStartingIndex, args.NewStartingIndex) + count;
 			_collectionView.ReloadItems(CreateIndexesFrom(start, end));
+		}
+
+		internal int IndexOf<T>(IEnumerable<T> items, T item) { return FindIndex(items, i => EqualityComparer<T>.Default.Equals(item, i)); }
+
+		internal int FindIndex<T>(IEnumerable<T> items, Func<T, bool> predicate)
+		{
+			if (items == null)
+				throw new ArgumentNullException(nameof(items));
+
+			if (predicate == null)
+				throw new ArgumentNullException(nameof(predicate));
+
+			int retVal = 0;
+
+			foreach (var item in items)
+			{
+				if (predicate(item))
+					return retVal;
+				retVal++;
+			}
+
+			return -1;
 		}
 	}
 }
