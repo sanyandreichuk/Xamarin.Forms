@@ -16,8 +16,10 @@ namespace Xamarin.Forms.Platform.Android
 
 			switch (itemsSource)
 			{
+				case IList _ when itemsSource is INotifyCollectionChanged:
+					return new ObservableItemsSource(itemsSource as IList, notifier);
 				case IEnumerable _ when itemsSource is INotifyCollectionChanged:
-					return new ObservableItemsSource(itemsSource as IEnumerable<object>, notifier);
+					return new ObservableItemsSource(itemsSource as IEnumerable, notifier);
 				case IEnumerable<object> generic:
 					return new ListSource(generic);
 			}

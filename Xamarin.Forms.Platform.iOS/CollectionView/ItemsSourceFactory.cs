@@ -16,8 +16,10 @@ namespace Xamarin.Forms.Platform.iOS
 
 			switch (itemsSource)
 			{
+				case IList _ when itemsSource is INotifyCollectionChanged:
+					return new ObservableItemsSource(itemsSource as IList, collectionViewController);
 				case IEnumerable _ when itemsSource is INotifyCollectionChanged:
-					return new ObservableItemsSource(itemsSource as IEnumerable<object>, collectionViewController);
+					return new ObservableItemsSource(itemsSource as IEnumerable, collectionViewController);
 				case IEnumerable<object> generic:
 					return new ListSource(generic);
 			}
